@@ -48,80 +48,83 @@ export class TicketsController {
   async create(@Body() newTicketDto: newTicketDto) {
     const { type, companyId } = newTicketDto;
 
-    if (!Object.values(TicketType).includes(type))
-      throw new HttpException(
-        `Invalid ticket type: ${type}`,
-        400
-      );
-    
-    if (type === TicketType.registrationAddressChange) {
-      const existingTicket = await Ticket.findOne({
-        where: { companyId, type, status: TicketStatus.open },
-      })
-
-      if (existingTicket)
-        throw new ConflictException(
-          `Ticket with type ${type} already exists for company ${companyId}`,
+    try {
+      if (!Object.values(TicketType).includes(type))
+        throw new HttpException(
+          `Invalid ticket type: ${type}`,
+          400
         );
-    }
+      
+      if (type === TicketType.registrationAddressChange) {
+        const existingTicket = await Ticket.findOne({
+          where: { companyId, type, status: TicketStatus.open },
+        })
 
-    const category = TicketTypeMappingToCategory[type];
-    const userRole = TicketCategoryMappingToRoles[category];
+        if (existingTicket)
+          throw new ConflictException(
+            `Ticket with type ${type} already exists for company ${companyId}`,
+          );
+      }
 
-    let assignees = await User.findAll({
-      where: { companyId, role: userRole},
-      order: [['createdAt', 'DESC']],
-    });
+      const category = TicketTypeMappingToCategory[type];
+      const userRole = TicketCategoryMappingToRoles[category];
 
-    console.log('assignees', assignees);
-
-    if (!assignees.length && category === TicketCategory.corporate) {
-      assignees = await User.findAll({
-        where: { companyId, role: UserRole.director},
+      let assignees = await User.findAll({
+        where: { companyId, role: userRole},
         order: [['createdAt', 'DESC']],
       });
-    }
 
-    if (!assignees.length) {
-      throw new HttpException(
-        `Cannot find user with role ${userRole} to create a ticket`,
-        404
-      );
-    }
-    
-    let assignee = assignees[0];
-    if (assignees.length > 1 && type !== TicketType.managementReport) {
-      throw new ConflictException(
-          `Multiple users with role ${userRole}. Cannot create a ticket`,
+      if (!assignees.length && category === TicketCategory.corporate) {
+        assignees = await User.findAll({
+          where: { companyId, role: UserRole.director},
+          order: [['createdAt', 'DESC']],
+        });
+      }
+
+      if (!assignees.length) {
+        throw new HttpException(
+          `Cannot find user with role ${userRole} to create a ticket`,
+          404
         );
+      }
+      
+      let assignee = assignees[0];
+      if (assignees.length > 1 && type !== TicketType.managementReport) {
+        throw new ConflictException(
+            `Multiple users with role ${userRole}. Cannot create a ticket`,
+          );
+      }
+
+      const ticket = await Ticket.create({
+        companyId,
+        assigneeId: assignee.id,
+        category,
+        type,
+        status: TicketStatus.open,
+      });
+
+      if (type === TicketType.strikeOff) {
+        await Ticket.update(
+          { status: TicketStatus.resolved },
+          { where: { companyId, status: TicketStatus.open, type: {
+            [Op.ne]: TicketType.strikeOff,
+          }}}
+        );
+      }
+
+      const ticketDto: TicketDto = {
+        id: ticket.id,
+        type: ticket.type,
+        assigneeId: ticket.assigneeId,
+        status: ticket.status,
+        category: ticket.category,
+        companyId: ticket.companyId,
+      };
+
+      return ticketDto;
+
+    } catch (error) {
+      throw error;
     }
-
-    const ticket = await Ticket.create({
-      companyId,
-      assigneeId: assignee.id,
-      category,
-      type,
-      status: TicketStatus.open,
-    });
-
-    if (type === TicketType.strikeOff) {
-      await Ticket.update(
-        { status: TicketStatus.resolved },
-        { where: { companyId, status: TicketStatus.open, type: {
-          [Op.ne]: TicketType.strikeOff,
-        }}}
-      );
-    }
-
-    const ticketDto: TicketDto = {
-      id: ticket.id,
-      type: ticket.type,
-      assigneeId: ticket.assigneeId,
-      status: ticket.status,
-      category: ticket.category,
-      companyId: ticket.companyId,
-    };
-
-    return ticketDto;
   }
 }
