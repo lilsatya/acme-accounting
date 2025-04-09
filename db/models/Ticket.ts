@@ -27,12 +27,6 @@ export enum TicketCategory {
   management = 'management',
 }
 
-export const TicketTypeMappingToCategory = {
-  [TicketType.managementReport]: TicketCategory.accounting,
-  [TicketType.registrationAddressChange]: TicketCategory.corporate,
-  [TicketType.strikeOff]: TicketCategory.management,
-}
-
 @Table({ tableName: 'tickets' })
 export class Ticket extends Model {
   @AutoIncrement
