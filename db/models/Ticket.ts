@@ -18,12 +18,19 @@ export enum TicketStatus {
 export enum TicketType {
   managementReport = 'managementReport',
   registrationAddressChange = 'registrationAddressChange',
+  strikeOff = 'strikeOff',
 }
 
 export enum TicketCategory {
   accounting = 'accounting',
   corporate = 'registrationAddressChange',
   management = 'management',
+}
+
+export const TicketTypeMappingToCategory = {
+  [TicketType.managementReport]: TicketCategory.accounting,
+  [TicketType.registrationAddressChange]: TicketCategory.corporate,
+  [TicketType.strikeOff]: TicketCategory.management,
 }
 
 @Table({ tableName: 'tickets' })
