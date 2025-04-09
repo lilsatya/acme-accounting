@@ -20,6 +20,6 @@ export class ReportsController {
     this.reportsService.accounts();
     this.reportsService.yearly();
     this.reportsService.fs();
-    return { message: 'finished' };
+    return { message: 'running, please use the GET API to check the progress' };
   }
 }
