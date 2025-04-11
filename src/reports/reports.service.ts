@@ -12,6 +12,8 @@ export class ReportsService {
     fs: 'idle',
   };
 
+  private queue = new PQueue({ concurrency: 1 })
+
   state(scope: string) {
     return this.states[scope];
   }
@@ -22,12 +24,9 @@ export class ReportsService {
       return { message: 'Another report is already in progress' };
     }
 
-    const queue = new PQueue({ concurrency: 1 });
-
-    queue.add(() => this.accounts());
-    queue.add(() => this.yearly());
-    queue.add(() => this.fs());
-
+    this.queue.add(() => this.accounts());
+    this.queue.add(() => this.yearly());
+    this.queue.add(() => this.fs());
 
     return { message: 'running, please use the GET API to check the progress' };
   }
