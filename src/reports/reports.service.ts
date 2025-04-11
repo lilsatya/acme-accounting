@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import PQueue from 'p-queue';
 import fs from 'fs/promises';
 import path from 'path';
 import { performance } from 'perf_hooks';
@@ -13,6 +14,22 @@ export class ReportsService {
 
   state(scope: string) {
     return this.states[scope];
+  }
+
+  generateAll() {
+    const states = Object.values(this.states);
+    if (states.some((state) => state === 'on progress')) {
+      return { message: 'Another report is already in progress' };
+    }
+
+    const queue = new PQueue({ concurrency: 1 });
+
+    queue.add(() => this.accounts());
+    queue.add(() => this.yearly());
+    queue.add(() => this.fs());
+
+
+    return { message: 'running, please use the GET API to check the progress' };
   }
 
   async accounts() {

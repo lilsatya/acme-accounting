@@ -17,17 +17,6 @@ export class ReportsController {
   @Post()
   @HttpCode(202)
   generate() {
-    if (
-      this.reportsService.state('accounts') !== 'idle' ||
-      this.reportsService.state('yearly') !== 'idle' ||
-      this.reportsService.state('fs') !== 'idle'
-    ) {
-      return { message: 'already running, please use the GET API to check the progress' };
-    }
-
-    this.reportsService.accounts();
-    this.reportsService.yearly();
-    this.reportsService.fs();
-    return { message: 'running, please use the GET API to check the progress' };
+    return this.reportsService.generateAll();
   }
 }
