@@ -8,21 +8,8 @@ import {
   TicketType,
 } from '../../db/models/Ticket';
 import { User, UserRole } from '../../db/models/User';
+import { newTicketDto, TicketDto } from './tickets.dto';
 
-// TODO: use class validator
-interface newTicketDto {
-  type: TicketType;
-  companyId: number;
-}
-
-interface TicketDto {
-  id: number;
-  type: TicketType;
-  companyId: number;
-  assigneeId: number;
-  status: TicketStatus;
-  category: TicketCategory;
-}
 
 const TicketTypeMappingToCategory = {
   [TicketType.managementReport]: TicketCategory.accounting,
@@ -49,12 +36,6 @@ export class TicketsController {
     const { type, companyId } = newTicketDto;
 
     try {
-      if (!Object.values(TicketType).includes(type))
-        throw new HttpException(
-          `Invalid ticket type: ${type}`,
-          400
-        );
-      
       if (type === TicketType.registrationAddressChange) {
         const existingTicket = await Ticket.findOne({
           where: { companyId, type, status: TicketStatus.open },
