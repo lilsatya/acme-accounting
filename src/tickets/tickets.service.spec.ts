@@ -8,25 +8,24 @@ import {
 } from '../../db/models/Ticket';
 import { User, UserRole } from '../../db/models/User';
 import { DbModule } from '../db.module';
-import { TicketsController } from './tickets.controller';
+import { TicketsService } from './tickets.service';
 
-describe('TicketsController', () => {
-  let controller: TicketsController;
+describe('TicketsService', () => {
+  let service: TicketsService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      controllers: [TicketsController],
+      providers: [TicketsService],
       imports: [DbModule],
     }).compile();
 
-    controller = module.get<TicketsController>(TicketsController);
+    service = module.get<TicketsService>(TicketsService);
   });
 
   it('should be defined', async () => {
-    expect(controller).toBeDefined();
-
-    const res = await controller.findAll();
-    console.log(res);
+    expect(service).toBeDefined();
+    expect(typeof service.findAll).toBe('function');
+    expect(typeof service.create).toBe('function');
   });
 
   describe('create', () => {
@@ -39,10 +38,10 @@ describe('TicketsController', () => {
           companyId: company.id,
         });
 
-        const ticket = await controller.create({
-          companyId: company.id,
-          type: TicketType.managementReport,
-        });
+        const ticket = await service.create(
+          TicketType.managementReport,
+          company.id,
+        );
 
         expect(ticket.category).toBe(TicketCategory.accounting);
         expect(ticket.assigneeId).toBe(user.id);
@@ -62,10 +61,10 @@ describe('TicketsController', () => {
           companyId: company.id,
         });
 
-        const ticket = await controller.create({
-          companyId: company.id,
-          type: TicketType.managementReport,
-        });
+        const ticket = await service.create(
+          TicketType.managementReport,
+          company.id,
+        );
 
         expect(ticket.category).toBe(TicketCategory.accounting);
         expect(ticket.assigneeId).toBe(user2.id);
@@ -76,10 +75,10 @@ describe('TicketsController', () => {
         const company = await Company.create({ name: 'test' });
 
         await expect(
-          controller.create({
-            companyId: company.id,
-            type: TicketType.managementReport,
-          }),
+          service.create(
+            TicketType.managementReport,
+            company.id,
+          ),
         ).rejects.toEqual(
           new ConflictException(
             `Cannot find user with role accountant to create a ticket`,
@@ -97,14 +96,39 @@ describe('TicketsController', () => {
           companyId: company.id,
         });
 
-        const ticket = await controller.create({
-          companyId: company.id,
-          type: TicketType.registrationAddressChange,
-        });
+        const ticket = await service.create(
+          TicketType.registrationAddressChange,
+          company.id,
+        );
 
         expect(ticket.category).toBe(TicketCategory.corporate);
         expect(ticket.assigneeId).toBe(user.id);
         expect(ticket.status).toBe(TicketStatus.open);
+      });
+
+      it('if there is any ongoing registrationAddressChange ticket, throw', async () => {
+        const company = await Company.create({ name: 'test' });
+        await User.create({
+          name: 'Test User',
+          role: UserRole.corporateSecretary,
+          companyId: company.id,
+        });
+
+        await service.create(
+          TicketType.registrationAddressChange,
+          company.id,
+        );
+
+        await expect(
+          service.create(
+            TicketType.registrationAddressChange,
+            company.id,
+          ),
+        ).rejects.toEqual(
+          new ConflictException(
+            `Ticket with type registrationAddressChange already exists for company ${company.id}`,
+          ),
+        );
       });
 
       it('if there is no secretary, change to director', async () => {
@@ -115,10 +139,10 @@ describe('TicketsController', () => {
           companyId: company.id,
         });
 
-        const ticket = await controller.create({
-          companyId: company.id,
-          type: TicketType.registrationAddressChange,
-        });
+        const ticket = await service.create(
+          TicketType.registrationAddressChange,
+          company.id,
+        );
 
         expect(ticket.category).toBe(TicketCategory.corporate);
         expect(ticket.assigneeId).toBe(user.id);
@@ -141,10 +165,10 @@ describe('TicketsController', () => {
           createdAt: new Date('2023-01-02'),
         });
 
-        const ticket = await controller.create({
-          companyId: company.id,
-          type: TicketType.registrationAddressChange,
-        });
+        const ticket = await service.create(
+          TicketType.registrationAddressChange,
+          company.id,
+        );
 
         expect(ticket.category).toBe(TicketCategory.corporate);
         expect(ticket.assigneeId).toBe(user.id);
@@ -165,13 +189,13 @@ describe('TicketsController', () => {
         });
 
         await expect(
-          controller.create({
-            companyId: company.id,
-            type: TicketType.registrationAddressChange,
-          }),
+          service.create(
+            TicketType.registrationAddressChange,
+            company.id,
+          ),
         ).rejects.toEqual(
           new ConflictException(
-            `Multiple users with role corporateSecretary. Cannot create a ticket`,
+            `Multiple users with role director. Cannot create a ticket`,
           ),
         );
       });
@@ -190,10 +214,10 @@ describe('TicketsController', () => {
         });
 
         await expect(
-          controller.create({
-            companyId: company.id,
-            type: TicketType.registrationAddressChange,
-          }),
+          service.create(
+            TicketType.registrationAddressChange,
+            company.id,
+          ),
         ).rejects.toEqual(
           new ConflictException(
             `Multiple users with role corporateSecretary. Cannot create a ticket`,
@@ -205,13 +229,13 @@ describe('TicketsController', () => {
         const company = await Company.create({ name: 'test' });
 
         await expect(
-          controller.create({
-            companyId: company.id,
-            type: TicketType.registrationAddressChange,
-          }),
+          service.create(
+            TicketType.registrationAddressChange,
+            company.id,
+          ),
         ).rejects.toEqual(
           new ConflictException(
-            `Cannot find user with role corporateSecretary to create a ticket`,
+            `Cannot find user with role corporateSecretary,director to create a ticket`,
           ),
         );
       });
@@ -232,17 +256,17 @@ describe('TicketsController', () => {
           companyId: company.id,
         });
 
-        await controller.create({
-          companyId: company.id,
-          type: TicketType.managementReport,
-        });
+        await service.create(
+          TicketType.managementReport,
+          company.id,
+        );
 
-        const ticket = await controller.create({
-          companyId: company.id,
-          type: TicketType.strikeOff,
-        });
+        const ticket = await service.create(
+          TicketType.strikeOff,
+          company.id,
+        );
 
-        const listOfExistingTicket = await controller.findAll();
+        const listOfExistingTicket = await service.findAll();
         const filtered = listOfExistingTicket.filter((t => t.type === TicketType.managementReport))[0];
 
         expect(ticket.category).toBe(TicketCategory.management);
@@ -265,10 +289,10 @@ describe('TicketsController', () => {
         });
 
         await expect(
-          controller.create({
-            companyId: company.id,
-            type: TicketType.strikeOff,
-          }),
+          service.create(
+            TicketType.strikeOff,
+            company.id,
+          ),
         ).rejects.toEqual(
           new ConflictException(
             `Multiple users with role director. Cannot create a ticket`,
@@ -280,10 +304,10 @@ describe('TicketsController', () => {
         const company = await Company.create({ name: 'test' });
 
         await expect(
-          controller.create({
-            companyId: company.id,
-            type: TicketType.strikeOff,
-          }),
+          service.create(
+            TicketType.strikeOff,
+            company.id,
+          ),
         ).rejects.toEqual(
           new ConflictException(
             `Cannot find user with role director to create a ticket`,
