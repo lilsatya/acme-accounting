@@ -1,10 +1,5 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
-import { Company } from '../../db/models/Company';
-import {
-  Ticket,
-} from '../../db/models/Ticket';
-import { User } from '../../db/models/User';
-import { newTicketDto } from './tickets.dto';
+import { Body, Query, Controller, Get, Post } from '@nestjs/common';
+import { findTicketParams, newTicketDto } from './tickets.dto';
 import { TicketsService } from './tickets.service';
 
 
@@ -13,8 +8,8 @@ export class TicketsController {
   constructor(private ticketsService: TicketsService) {}
 
   @Get()
-  async findAll() {
-    const res = await this.ticketsService.findAll();
+  async findAll(@Query() params: findTicketParams) {
+    const res = await this.ticketsService.findAll(params.page, params.limit);
 
     return res
   }

@@ -6,6 +6,11 @@ import {
   TicketType,
 } from '../../db/models/Ticket';
 
+export class findTicketParams {
+  page: number;
+  limit: number;
+}
+
 export class newTicketDto {
   @IsEnum(TicketType)
   type: TicketType;

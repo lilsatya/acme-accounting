@@ -135,9 +135,13 @@ export class TicketsService {
     return TicketDto.build(ticket);
   }
 
-  async findAll(): Promise<TicketDto[]> {
+  async findAll(page: number = 1, limit: number = 10): Promise<TicketDto[]> {
+    const offset = (page - 1) * limit;
+
     const tickets = await Ticket.findAll({
       include: [Company, User],
+      limit,
+      offset,
     });
 
     return tickets.map((ticket) => TicketDto.build(ticket));
