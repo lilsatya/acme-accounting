@@ -18,45 +18,53 @@ export class ReportsService {
     return this.states[scope];
   }
 
-  generateAll() {
+  private async prepareLines(tmpDir: string): Promise<string[]> {
+    const files = await fs.readdir(tmpDir);
+    let lines: string[] = [];
+    for (const file of files) {
+      if (file.endsWith('.csv')) {
+        const filePath = path.join(tmpDir, file);
+        const data = await fs.readFile(filePath, 'utf-8');
+        lines.push(...data.trim().split('\n'));
+      }
+    }
+
+    return lines;
+  }
+
+  async generateAll() {
     const states = Object.values(this.states);
     if (states.some((state) => state === 'on progress')) {
       return { message: 'Another report is already in progress' };
     }
 
-    this.queue.add(() => this.accounts());
-    this.queue.add(() => this.yearly());
-    this.queue.add(() => this.fs());
+    const tmpDir = 'tmp';
+    const lines = await this.prepareLines(tmpDir);
+    this.queue.add(() => this.accounts(lines));
+    this.queue.add(() => this.yearly(lines));
+    this.queue.add(() => this.fs(lines));
 
     return { message: 'running, please use the GET API to check the progress' };
   }
 
-  async accounts() {
+  async accounts(lines: string[] = []) {
     this.states.accounts = 'starting';
 
     try {
       const start = performance.now();
-      const tmpDir = 'tmp';
+      
       const outputFile = 'out/accounts.csv';
       const accountBalances: Record<string, number> = {};
-      const files = await fs.readdir(tmpDir);
 
       this.states.accounts = 'on progress';
-      for (const file of files) {
-        if (file.endsWith('.csv')) {
-          const filePath = path.join(tmpDir, file);
-          const data = await fs.readFile(filePath, 'utf-8');
-          const lines = data.trim().split('\n');
-          for (const line of lines) {
-            const [, account, , debit, credit] = line.split(',');
-            if (!accountBalances[account]) {
-              accountBalances[account] = 0;
-            }
-            accountBalances[account] +=
-              parseFloat(String(debit || 0)) - parseFloat(String(credit || 0));
-          }
+      for (const line of lines) {
+        const [, account, , debit, credit] = line.split(',');
+        if (!accountBalances[account]) {
+          accountBalances[account] = 0;
         }
-      };
+        accountBalances[account] +=
+          parseFloat(String(debit || 0)) - parseFloat(String(credit || 0));
+      }
       const output = ['Account,Balance'];
       for (const [account, balance] of Object.entries(accountBalances)) {
         output.push(`${account},${balance.toFixed(2)}`);
@@ -68,35 +76,26 @@ export class ReportsService {
     }
   }
 
-  async yearly() {
+  async yearly(lines: string[] = []) {
     this.states.yearly = 'starting';
 
     try {
       const start = performance.now();
-      const tmpDir = 'tmp';
       const outputFile = 'out/yearly.csv';
       const cashByYear: Record<string, number> = {};
-      const files = await fs.readdir(tmpDir)
 
       this.states.yearly = 'on progress';
-      for (const file of files) {
-        if (file.endsWith('.csv') && file !== 'yearly.csv') {
-          const filePath = path.join(tmpDir, file);
-          const data = await fs.readFile(filePath, 'utf-8');
-          const lines = data.trim().split('\n');
-          for (const line of lines) {
-            const [date, account, , debit, credit] = line.split(',');
-            if (account === 'Cash') {
-              const year = new Date(date).getFullYear();
-              if (!cashByYear[year]) {
-                cashByYear[year] = 0;
-              }
-              cashByYear[year] +=
-                parseFloat(String(debit || 0)) - parseFloat(String(credit || 0));
-            }
+      for (const line of lines) {
+        const [date, account, , debit, credit] = line.split(',');
+        if (account === 'Cash') {
+          const year = new Date(date).getFullYear();
+          if (!cashByYear[year]) {
+            cashByYear[year] = 0;
           }
+          cashByYear[year] +=
+            parseFloat(String(debit || 0)) - parseFloat(String(credit || 0));
         }
-      };
+      }
       const output = ['Financial Year,Cash Balance'];
       Object.keys(cashByYear)
         .sort()
@@ -110,12 +109,11 @@ export class ReportsService {
     }
   }
 
-  async fs() {
+  async fs(lines: string[] = []) {
     this.states.fs = 'starting';
 
     try {
       const start = performance.now();
-      const tmpDir = 'tmp';
       const outputFile = 'out/fs.csv';
       const categories = {
         'Income Statement': {
@@ -158,23 +156,14 @@ export class ReportsService {
           }
         }
       }
-      const files = await fs.readdir(tmpDir);
-      for (const file of files) {
-        if (file.endsWith('.csv') && file !== 'fs.csv') {
-          const filePath = path.join(tmpDir, file);
-          const data = await fs.readFile(filePath, 'utf-8');
-          const lines = data.trim().split('\n');
+      for (const line of lines) {
+        const [, account, , debit, credit] = line.split(',');
 
-          for (const line of lines) {
-            const [, account, , debit, credit] = line.split(',');
-
-            if (balances.hasOwnProperty(account)) {
-              balances[account] +=
-                parseFloat(String(debit || 0)) - parseFloat(String(credit || 0));
-            }
-          }
+        if (balances.hasOwnProperty(account)) {
+          balances[account] +=
+            parseFloat(String(debit || 0)) - parseFloat(String(credit || 0));
         }
-      };
+      }
 
       const output: string[] = [];
       output.push('Basic Financial Statement');
