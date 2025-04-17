@@ -34,7 +34,7 @@ export class ReportsService {
 
   async generateAll() {
     const states = Object.values(this.states);
-    if (states.some((state) => state === 'on progress')) {
+    if (states.some((state) => state === 'starting')) {
       return { message: 'Another report is already in progress' };
     }
 
@@ -56,7 +56,6 @@ export class ReportsService {
       const outputFile = 'out/accounts.csv';
       const accountBalances: Record<string, number> = {};
 
-      this.states.accounts = 'on progress';
       for (const line of lines) {
         const [, account, , debit, credit] = line.split(',');
         if (!accountBalances[account]) {
@@ -84,7 +83,6 @@ export class ReportsService {
       const outputFile = 'out/yearly.csv';
       const cashByYear: Record<string, number> = {};
 
-      this.states.yearly = 'on progress';
       for (const line of lines) {
         const [date, account, , debit, credit] = line.split(',');
         if (account === 'Cash') {
@@ -147,7 +145,6 @@ export class ReportsService {
         },
       };
 
-      this.states.fs = 'on progress';
       const balances: Record<string, number> = {};
       for (const section of Object.values(categories)) {
         for (const group of Object.values(section)) {
